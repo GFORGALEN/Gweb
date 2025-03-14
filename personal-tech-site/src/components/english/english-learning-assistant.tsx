@@ -1,150 +1,189 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+'use client';
+
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export function EnglishLearningAssistant() {
-  const [inputText, setInputText] = useState("");
+  const [text, setText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState<null | {
-    grammar: { point: string; explanation: string }[];
-    vocabulary: { word: string; explanation: string; example: string }[];
-    improvement: string;
-    exercises: { question: string; hint: string }[];
-  }>(null);
+  const [analysis, setAnalysis] = useState<any>(null);
 
-  const handleAnalyze = async () => {
-    if (!inputText.trim()) return;
-    
+  const analyzeText = async () => {
+    if (!text.trim()) {
+      toast.error('请输入文本');
+      return;
+    }
+
     setIsAnalyzing(true);
-    
-    // 模拟API调用
-    setTimeout(() => {
-      setResult({
-        grammar: [
-          {
-            point: "时态使用",
-            explanation: "你在这段文字中混用了过去时和现在时。保持时态一致能让表达更清晰。"
-          },
-          {
-            point: "冠词使用",
-            explanation: "注意特定名词前的定冠词'the'的使用。"
-          }
-        ],
-        vocabulary: [
-          {
-            word: "accomplish",
-            explanation: "完成，实现（某事物）",
-            example: "She accomplished her goal of running a marathon."
-          },
-          {
-            word: "perspective",
-            explanation: "观点，看法",
-            example: "From my perspective, this is the right decision."
-          }
-        ],
-        improvement: "整体来说，你的表达已经很清晰。建议使用更多连接词来增强段落的连贯性，比如however, therefore, moreover等。",
-        exercises: [
-          {
-            question: "重写以下句子，使用正确的时态: 'Yesterday I go to the store and bought some milk.'",
-            hint: "注意动词'go'的过去时形式。"
-          },
-          {
-            question: "在下面的句子中添加适当的冠词: 'I saw ____ movie last night about ____ French Revolution.'",
-            hint: "考虑什么时候使用定冠词'the'和不定冠词'a/an'。"
-          }
-        ]
+    try {
+      const response = await fetch('/api/english/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text }),
       });
+
+      if (!response.ok) {
+        throw new Error('分析请求失败');
+      }
+
+      const data = await response.json();
+      setAnalysis(data.analysis);
+      toast.success('文本分析已完成');
+    } catch (error) {
+      console.error('分析文本时出错:', error);
+      toast.error('分析失败，请稍后再试');
+    } finally {
       setIsAnalyzing(false);
-    }, 1500);
+    }
+  };
+
+  const saveVocabulary = async (word: string, definition: string) => {
+    try {
+      const response = await fetch('/api/english/vocabulary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ word, definition }),
+      });
+
+      if (!response.ok) {
+        throw new Error('保存单词失败');
+      }
+
+      toast({
+        title: '单词已保存',
+        description: `"${word}" 已添加到你的词汇表`,
+      });
+    } catch (error) {
+      console.error('保存单词时出错:', error);
+      toast({
+        title: '保存失败',
+        description: '保存单词时出错，请稍后再试',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>输入英语文本</CardTitle>
-          <CardDescription>
-            输入你想要分析的英语文本，可以是句子、段落或短文
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            placeholder="在这里输入英语文本..."
-            className="min-h-32"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-          />
-          <Button 
-            className="mt-4"
-            onClick={handleAnalyze}
-            disabled={!inputText.trim() || isAnalyzing}
-          >
-            {isAnalyzing ? "分析中..." : "开始分析"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {result && (
+    <div className="container mx-auto py-6">
+      <h1 className="text-3xl font-bold mb-6">英语学习助手</h1>
+      
+      <div className="grid gap-6 mb-6">
         <Card>
           <CardHeader>
-            <CardTitle>分析结果</CardTitle>
+            <CardTitle>输入英语文本</CardTitle>
+            <CardDescription>
+              输入你想要分析的英语文本，我们将提供语法分析、词汇解释和改进建议
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="grammar">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="grammar">语法</TabsTrigger>
-                <TabsTrigger value="vocabulary">词汇</TabsTrigger>
-                <TabsTrigger value="improvement">改进建议</TabsTrigger>
-                <TabsTrigger value="exercises">练习</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="grammar" className="space-y-4 mt-4">
-                {result.grammar.map((item, index) => (
-                  <div key={index} className="border p-4 rounded-md">
-                    <h3 className="font-semibold">{item.point}</h3>
-                    <p className="text-gray-600">{item.explanation}</p>
-                  </div>
-                ))}
-              </TabsContent>
-              
-              <TabsContent value="vocabulary" className="space-y-4 mt-4">
-                {result.vocabulary.map((item, index) => (
-                  <div key={index} className="border p-4 rounded-md">
-                    <h3 className="font-semibold">{item.word}</h3>
-                    <p>{item.explanation}</p>
-                    <p className="text-gray-600 italic">例句: {item.example}</p>
-                  </div>
-                ))}
-              </TabsContent>
-              
-              <TabsContent value="improvement" className="mt-4">
-                <div className="border p-4 rounded-md">
-                  <p>{result.improvement}</p>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="exercises" className="space-y-4 mt-4">
-                {result.exercises.map((exercise, index) => (
-                  <div key={index} className="border p-4 rounded-md">
-                    <p className="font-medium">{exercise.question}</p>
-                    <p className="text-gray-600 mt-2">提示: {exercise.hint}</p>
-                  </div>
-                ))}
-              </TabsContent>
-            </Tabs>
+            <Textarea
+              placeholder="在此输入英语文本..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              className="min-h-[150px] mb-4"
+            />
+            <Button 
+              onClick={analyzeText} 
+              disabled={isAnalyzing}
+              className="w-full"
+            >
+              {isAnalyzing ? '分析中...' : '分析文本'}
+            </Button>
           </CardContent>
         </Card>
-      )}
+
+        {analysis && (
+          <Card>
+            <CardHeader>
+              <CardTitle>分析结果</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="grammar">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="grammar">语法分析</TabsTrigger>
+                  <TabsTrigger value="vocabulary">词汇解释</TabsTrigger>
+                  <TabsTrigger value="suggestions">改进建议</TabsTrigger>
+                  <TabsTrigger value="exercises">练习题</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="grammar" className="mt-4">
+                  <div className="prose dark:prose-invert">
+                    <h3>语法分析</h3>
+                    <div dangerouslySetInnerHTML={{ __html: analysis.grammar }} />
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="vocabulary" className="mt-4">
+                  <div className="prose dark:prose-invert">
+                    <h3>词汇解释</h3>
+                    <ul className="space-y-2">
+                      {analysis.vocabulary && analysis.vocabulary.map((item: any, index: number) => (
+                        <li key={index} className="flex justify-between items-start border-b pb-2">
+                          <div>
+                            <strong>{item.word}</strong>: {item.definition}
+                            {item.example && <p className="text-sm italic mt-1">{item.example}</p>}
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => saveVocabulary(item.word, item.definition)}
+                          >
+                            保存
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="suggestions" className="mt-4">
+                  <div className="prose dark:prose-invert">
+                    <h3>改进建议</h3>
+                    <div dangerouslySetInnerHTML={{ __html: analysis.suggestions }} />
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="exercises" className="mt-4">
+                  <div className="prose dark:prose-invert">
+                    <h3>练习题</h3>
+                    <ol className="space-y-4">
+                      {analysis.exercises && analysis.exercises.map((exercise: any, index: number) => (
+                        <li key={index}>
+                          <p>{exercise.question}</p>
+                          {exercise.options && (
+                            <ul className="mt-2 space-y-1">
+                              {exercise.options.map((option: string, optIndex: number) => (
+                                <li key={optIndex}>{option}</li>
+                              ))}
+                            </ul>
+                          )}
+                          <details className="mt-2">
+                            <summary className="cursor-pointer text-blue-500">查看答案</summary>
+                            <p className="mt-1">{exercise.answer}</p>
+                            {exercise.explanation && (
+                              <p className="mt-1 text-sm">{exercise.explanation}</p>
+                            )}
+                          </details>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
